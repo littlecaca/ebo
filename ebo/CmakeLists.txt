@@ -1,0 +1,46 @@
+cmake_minimum_required(VERSION 3.5)
+enable_testing()
+
+project(ebo)
+
+# Set install root path
+set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Functions to create test quickly
+function(do_test lib target arg)
+    add_executable(${target} ${target}.cc)
+    target_link_libraries(${target} PRIVATE ${lib})
+    add_test(NAME ${target} COMMAND ${target} ${arg})
+endfunction(do_test)
+
+function(do_bad_test lib target arg)
+    add_executable(${target} ${target}.cc)
+    target_link_libraries(${target} PRIVATE ${lib})
+    add_test(NAME ${target} COMMAND ${CMAKE_COMMAND} -E env $<TARGET_FILE:${target}> ${arg})
+    set_property(TEST ${target} PROPERTY WILL_FAIL true)
+endfunction(do_bad_test)
+
+option(EBO_BUILD_TEST "build test program" ON)
+option(EBO_BUILD_EXAMPLE "build example program" ON)
+option(EBO_DEBUG "Debug mode" ON)
+
+if (EBO_DEBUG)
+    add_compile_definitions(_DEBUG)
+endif()
+
+add_link_options(-rdynamic)
+
+set(EBO_SOURCE
+    log_server.cc
+)
+
+# Add the muzi include and lib
+include_directories(/mnt/hgfs/c++/muzi/include)
+link_libraries(/mnt/hgfs/c++/muzi/lib)
+
+add_library(ebo_compile_flags INTERFACE)
+target_compile_features(ebo_compile_flags INTERFACE cxx_std_17)
+
+add_library(ebo_server ${EBO_SOURCE})
+
+target_link_libraries(ebo_server muzi_base muzi_net)
