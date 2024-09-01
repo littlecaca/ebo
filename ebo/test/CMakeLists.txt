@@ -1,0 +1,1 @@
+do_test(ebo_server subprocess_test "")

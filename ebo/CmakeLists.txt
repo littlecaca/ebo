@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 enable_testing()
 
-project(ebo)
+project(ebo_server)
 
 # Set install root path
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
@@ -32,15 +32,22 @@ add_link_options(-rdynamic)
 
 set(EBO_SOURCE
     log_server.cc
+    subprocess.cc
 )
 
 # Add the muzi include and lib
 include_directories(/mnt/hgfs/c++/muzi/include)
-link_libraries(/mnt/hgfs/c++/muzi/lib)
+link_directories(/mnt/hgfs/c++/muzi/lib)
 
 add_library(ebo_compile_flags INTERFACE)
 target_compile_features(ebo_compile_flags INTERFACE cxx_std_17)
 
 add_library(ebo_server ${EBO_SOURCE})
+target_link_libraries(ebo_server ebo_compile_flags muzi_base muzi_net)
 
-target_link_libraries(ebo_server muzi_base muzi_net)
+# provide its headers to other library linking to it
+target_include_directories(ebo_server INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+
+if (EBO_BUILD_TEST)
+    add_subdirectory(test)
+endif()
