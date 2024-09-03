@@ -11,6 +11,7 @@ namespace ebo
 {
 int SubProcess::CreateSubProcess()
 {
+    ::signal(SIGCHLD, SIG_IGN);
     if (!func_)
     {
         LOG_FATAL << "SubProcess::CreateSubProcess() func_ is empty";
@@ -125,6 +126,8 @@ void SubProcess::SwitchToDaemon()
     }
     if (pid > 0) exit(0);
 
+    ::signal(SIGCHLD, SIG_IGN);
+    
     // user file creation mode mask
     ::umask(0);
 

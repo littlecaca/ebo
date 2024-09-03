@@ -4,7 +4,7 @@ enable_testing()
 project(ebo_server)
 
 # Set install root path
-set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
+set(CMAKE_INSTALL_PREFIX "/home/siso/ebo")
 
 # Functions to create test quickly
 function(do_test lib target arg)
@@ -33,6 +33,7 @@ add_link_options(-rdynamic)
 set(EBO_SOURCE
     log_server.cc
     subprocess.cc
+    log_outputer.cc
 )
 
 # Add the muzi include and lib
@@ -43,7 +44,8 @@ add_library(ebo_compile_flags INTERFACE)
 target_compile_features(ebo_compile_flags INTERFACE cxx_std_17)
 
 add_library(ebo_server ${EBO_SOURCE})
-target_link_libraries(ebo_server ebo_compile_flags muzi_base muzi_net)
+# Must put the dependent libs to back
+target_link_libraries(ebo_server ebo_compile_flags muzi_net muzi_base)
 
 # provide its headers to other library linking to it
 target_include_directories(ebo_server INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

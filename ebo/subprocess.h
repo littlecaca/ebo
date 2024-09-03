@@ -3,6 +3,7 @@
 #include <functional>
 
 #include <memory.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include "noncopyable.h"
@@ -25,7 +26,8 @@ public:
     /// so we must allow to construct without setting entryfunc.
     SubProcess()
         : SubProcess(EntryFunc())
-    {}
+    {
+    }
 
     void SetEntryFunc(EntryFunc func)
     {
@@ -46,6 +48,11 @@ public:
     int RecvFd() const;
 
     static void SwitchToDaemon();
+
+    void CloseFd()
+    {
+        ::close(sock_fd_);
+    }
 
 private:
     EntryFunc func_;
