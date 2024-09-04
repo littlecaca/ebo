@@ -34,6 +34,8 @@ set(EBO_SOURCE
     log_server.cc
     subprocess.cc
     log_outputer.cc
+    http/c_http_parser.c
+    http/http_parser.cc
 )
 
 # Add the muzi include and lib
@@ -48,7 +50,8 @@ add_library(ebo_server ${EBO_SOURCE})
 target_link_libraries(ebo_server ebo_compile_flags muzi_net muzi_base)
 
 # provide its headers to other library linking to it
-target_include_directories(ebo_server INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(ebo_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/http)
+target_include_directories(ebo_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (EBO_BUILD_TEST)
     add_subdirectory(test)

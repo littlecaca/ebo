@@ -6,3 +6,6 @@ install(TARGETS log_test
 do_test(ebo_server bind_test "")
 install(TARGETS bind_test
         DESTINATION test)
+
+do_test(ebo_server http_parser_test "")
+do_test(ebo_server url_parser_test "")
