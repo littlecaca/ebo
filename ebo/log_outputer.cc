@@ -35,7 +35,7 @@ void LogOupter::Start()
     // Start log server subprocess
     process_.CreateSubProcess();
 
-    ::usleep(1000 * 10);    // 10ms
+    ::usleep(1000 * 20);    // 20ms
     // Start client
     int ret = sock_client_.Connect(addr_);
 

@@ -4,6 +4,12 @@
 
 using namespace ebo;
 
+template <typename T>
+constexpr T &&forward(typename std::remove_reference<T>::type &arg)
+{
+    return static_cast<T &&>(arg);
+}
+
 int main(int argc, char const *argv[])
 {
     DEBUGINFO << "Start test";
@@ -11,11 +17,11 @@ int main(int argc, char const *argv[])
     LogOupter outputer("test");
     outputer.Start();
 
-    muzi::gStdioLogger.SetOutputer(&outputer);
+    muzi::gDefaultLogger.SetOutputer(&outputer);
 
-    LOG_INFO_U(muzi::gStdioLogger) << "Hello, 我的强大，真的很大";
-    LOG_INFO_U(muzi::gStdioLogger) << "Hello, 我的强大，真的很大";
-    LOG_INFO_U(muzi::gStdioLogger) << "Hello, 我的强大，真的很大";
-
+    LOG_INFO << "Hello, 好厉害！！！";
+    LOG_INFO << "Hello, 好帮帮！！！";
+    LOG_INFO << "Hello, 好拉拉！！！";
+    LOG_INFO << "Hello, 好酷酷！！！";
     return 0;
 }
