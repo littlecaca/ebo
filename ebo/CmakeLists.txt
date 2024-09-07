@@ -34,24 +34,25 @@ set(EBO_SOURCE
     log_server.cc
     subprocess.cc
     log_outputer.cc
-    http/c_http_parser.c
-    http/http_parser.cc
+    http_parser.cc
+    sqlite3_client.cc
+    database_client.cc
 )
 
 # Add the muzi include and lib
 include_directories(/mnt/hgfs/c++/muzi/include)
-link_directories(/mnt/hgfs/c++/muzi/lib)
+link_directories(/mnt/hgfs/c++/muzi/lib ${CMAKE_CURRENT_SOURCE_DIR}/vender/libs)
 
 add_library(ebo_compile_flags INTERFACE)
 target_compile_features(ebo_compile_flags INTERFACE cxx_std_17)
 
 add_library(ebo_server ${EBO_SOURCE})
 # Must put the dependent libs to back
-target_link_libraries(ebo_server ebo_compile_flags muzi_net muzi_base)
+target_link_libraries(ebo_server ebo_compile_flags muzi_net muzi_base http_parser sqlite3)
 
 # provide its headers to other library linking to it
-target_include_directories(ebo_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/http)
 target_include_directories(ebo_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(ebo_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vender/includes)
 
 if (EBO_BUILD_TEST)
     add_subdirectory(test)

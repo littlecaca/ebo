@@ -21,6 +21,9 @@ public:
         : parsed_(false)
     {
     }
+    virtual ~HttpMessage()
+    {
+    }
 
     bool Parse(const std::string &raw_msg_str);
 
