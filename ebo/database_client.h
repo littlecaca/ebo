@@ -108,7 +108,7 @@ enum FieldAttr : unsigned
     UNIQUE = 4,
     PRIMARY_KEY = 8,
     CHECK = 16,
-    AUTOINCREMENT = 32
+    AUTOINCREMENT = 32,
 };
 
 enum SqlType : unsigned
@@ -134,7 +134,7 @@ public:
         const std::string &_default,
         const std::string &check
     )
-        : name_(name), type_(type), attr_(attr),
+        : condition_(0), name_(name), type_(type), attr_(attr),
           size_(size), default_(_default), check_(check),
           com_ops_("=")
     {
@@ -148,9 +148,14 @@ public:
     virtual std::string ToEqualExp() = 0;
     virtual std::string ToSqlStr() = 0;
     virtual FieldPtr Copy() const = 0;
-
-    const std::string &GetName() const { return name_; }
+    virtual std::string ToSqlName() const { return name_; }
+    
+    std::string GetName() const { return name_; }
     void SetComOps(const std::string &ops) { com_ops_ = ops; }
+    unsigned GetAttr() const { return attr_; }
+
+    static std::string StrToHex(const std::string &str);
+
 
 public:
     unsigned condition_;

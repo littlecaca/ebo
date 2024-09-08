@@ -10,6 +10,7 @@ __Table::__Table(const __Table &tab)
         field = field->Copy();
         fields_.push_back(field);
     }
+    ClearCondition();
 }
 
 
@@ -35,5 +36,15 @@ void __Table::ClearCondition()
     }
 }
 
+std::string __Field::StrToHex(const std::string &str)
+{
+    static const char *index = "0123456789ABCDEF";
+    std::string buf;
+    for (char cur : str)
+    {
+        buf += index[(cur >> 4)] + index[(cur % (1 << 4))];
+    }
+    return buf;
+}
 
 } // namespace ebo

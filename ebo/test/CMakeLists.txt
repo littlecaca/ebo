@@ -12,3 +12,5 @@ do_test(ebo_server url_parser_test "")
 do_test(ebo_server sqlite3_client_test "")
 install(TARGETS sqlite3_client_test
         DESTINATION test)
+
+do_test(ebo_server mysql_client_test "")

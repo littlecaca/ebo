@@ -1,27 +1,24 @@
 #pragma once
 
-#include <memory>
+#include <memory.h>
+
+#include <mysql/mysql.h>
 
 #include "database_client.h"
-#include "sqlite3.h"
-#include "noncopyable.h"
 
 namespace ebo
 {
-class Sqlite3Client : public DatebaseClient
+class MysqlClient : public DatebaseClient
 {
 public:
-    Sqlite3Client(const std::string &name = "") 
-        : DatebaseClient(name), stmt_(nullptr), db_(nullptr)
+    MysqlClient(const std::string &name = "") 
+        : DatebaseClient(name), connected_(false)
     {
+        ::memset(&db_, 0, sizeof db_);
     }
     
-    virtual ~Sqlite3Client()
+    virtual ~MysqlClient()
     {
-        if (IsConnected())
-        {
-            Close();
-        }
     }
 
 public:
@@ -31,43 +28,39 @@ public:
 
     virtual bool StartTransaction() override
     {
-        return ExecCommand("BEGIN TRANSACTION");
+        return ExecCommand("BEGIN", sizeof "BEGIN");
     }
     virtual bool CommitTransaction() override
     {
-        return ExecCommand("COMMIT TRANSACTION");
+        return ExecCommand("COMMIT", sizeof "COMMIT");
     }
     virtual bool RollbackTransaction() override
     {
-        return ExecCommand("ROLLBACK TRANSACTION");
+        return ExecCommand("ROLLBACK", sizeof "ROLLBACK");
     }
 
     virtual bool Close() override;
     virtual bool IsConnected() const override
     {
-        return db_ != nullptr;
+        return  connected_;
     }
 
 private:
-    static int ExecCallback(void* arg, int count, char** names, char** values);
-    int ExecCallback(Result &result, __Table& table, int count, char** names, char** values);
-
-    bool ExecCommand(const char *command) const;
+    bool ExecCommand(const char *command, size_t len);
 
 private:
-    sqlite3_stmt *stmt_;
-    sqlite3 *db_;
+    bool connected_;
+    MYSQL db_;
 };
 
-
-class __Sqlite3Table : public __Table
+class __MysqlTable : public __Table
 {
 public:
-    __Sqlite3Table(DBPtr db, const std::string &name)
+    __MysqlTable(DBPtr db, const std::string &name)
         : __Table(db, name)
     {}
 
-    __Sqlite3Table(const __Sqlite3Table &tab)
+    __MysqlTable(const __MysqlTable &tab)
         : __Table(tab)
     {}
 
@@ -82,10 +75,11 @@ public:
     virtual TablePtr Copy() const override;
 };
 
-class __Sqlite3Field : public __Field
+
+class __MysqlField : public __Field
 {
 public:
-    __Sqlite3Field(
+    __MysqlField(
         const std::string &name,
         unsigned type,
         unsigned attr,
@@ -94,9 +88,9 @@ public:
         const std::string &check
     );
 
-    ~__Sqlite3Field() override;
+    ~__MysqlField() override;
 
-    __Sqlite3Field(const __Sqlite3Field &field);
+    __MysqlField(const __MysqlField &field);
 
 public:
     virtual std::string Create() override;
@@ -104,8 +98,7 @@ public:
     virtual std::string ToEqualExp() override;
     virtual std::string ToSqlStr() override;
     virtual FieldPtr Copy() const override;
-    virtual std::string ToSqlName() const override { return "\"" + name_ + "\""; }
-
+    virtual std::string ToSqlName() const override { return "`" + name_ + "`"; }
 
     virtual __Field &operator=(const std::string &str) override
     {
@@ -114,6 +107,7 @@ public:
     }
 
 protected:
+
     static const char *SqlTypeToStr(unsigned type);
 
 protected:
@@ -126,5 +120,4 @@ protected:
     };
     unsigned n_type_;
 };
-
-} // namespace ebo
+}   // namespace ebo

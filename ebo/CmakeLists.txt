@@ -37,6 +37,7 @@ set(EBO_SOURCE
     http_parser.cc
     sqlite3_client.cc
     database_client.cc
+    mysql_client.cc
 )
 
 # Add the muzi include and lib
@@ -48,7 +49,7 @@ target_compile_features(ebo_compile_flags INTERFACE cxx_std_17)
 
 add_library(ebo_server ${EBO_SOURCE})
 # Must put the dependent libs to back
-target_link_libraries(ebo_server ebo_compile_flags muzi_net muzi_base http_parser sqlite3)
+target_link_libraries(ebo_server ebo_compile_flags muzi_net muzi_base http_parser sqlite3 mysqlclient)
 
 # provide its headers to other library linking to it
 target_include_directories(ebo_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -1,20 +1,13 @@
-#include "sqlite3_client.h"
+#include "mysql_client.h"
 
 #include "logger.h"
 
 namespace ebo
 {
 
-namespace
+namespace 
 {
-struct ExecParam
-{
-    Sqlite3Client *obj_;
-    Result &result_;
-    __Table &table_;
-};
-
-const char *kSqlite3Type[] = {
+const char *kMysqlType[] = {
     "NULL",
     "BOOL",
     "INTEGER",
@@ -26,149 +19,161 @@ const char *kSqlite3Type[] = {
 };
 }   // internal linkage
 
-bool Sqlite3Client::Connect(const KeyValue &args)
+bool MysqlClient::Connect(const KeyValue &args)
 {
     if (IsConnected())
     {
-        LOG_ERROR << "Sqlite3Client::Connect() Connection has been established";
+        LOG_ERROR << "MysqlClient::Connect() Connection has been established";
         return false;
     }
     auto host_it = args.find("host");
-    if (host_it == args.end())
+    auto port_it = args.find("port");
+    auto user_it = args.find("user");
+    auto pwd_it = args.find("pwd");
+    auto db_it = args.find("db");
+
+    if (host_it == args.end() || user_it == args.end()
+        || pwd_it == args.end() || port_it == args.end() 
+        || db_it == args.end())
     {
-        LOG_ERROR << "Sqlite3Client::Connect() Can not find host";
-        return false;   
+        LOG_ERROR << "MysqlClient::Connect() Can not find necessary args";
+        return false;
+        
+    }
+    MYSQL *ret = mysql_init(&db_);
+    if (ret == nullptr)
+    {
+        LOG_ERROR << "MysqlClient::Connect() Init fails: " << mysql_errno(&db_)
+            << " " << mysql_error(&db_);
+        return false;
     }
 
-    int ret = sqlite3_open(host_it->second.data(), &db_);
+    ret = mysql_real_connect(&db_, host_it->second.data(), user_it->second.data(),
+        pwd_it->second.data(), db_it->second.data(), std::stoul(port_it->second), nullptr, 0);
+    
+    if (ret == nullptr || mysql_errno(&db_) != 0)
+    {
+        LOG_ERROR << "MysqlClient::Connect() Connect fails: " << mysql_errno(&db_)
+            << " " << mysql_error(&db_);
+        mysql_close(&db_);
+        ::memset(&db_, 0, sizeof db_);
+        return false;
+    }
+
+    connected_ = true;
+    return true;
+}
+
+bool MysqlClient::Exec(const std::string &sql)
+{
+    return ExecCommand(sql.data(), sql.size());
+}
+
+bool MysqlClient::Exec(const std::string &sql, Result &result, __Table &table)
+{
+    if (!ExecCommand(sql.data(), sql.size()))
+        return false;
+    MYSQL_RES *res = mysql_store_result(&db_);
+    MYSQL_ROW row;
+    unsigned num_fields = mysql_num_fields(res);
+
+    while ((row = mysql_fetch_row(res)) != nullptr)
+    {
+        TablePtr tab = table.Copy();
+        for (unsigned i = 0; i < num_fields; ++i)
+        {
+            if (row[i] != nullptr)
+            {
+                tab->FieldDefine()[i]->LoadFromStr(row[i]);
+            }
+        }
+        result.push_back(tab);
+    }
+    return true;
+}
+
+bool MysqlClient::Close()
+{
+    if (IsConnected())
+    {
+        mysql_close(&db_);
+        ::memset(&db_, 0, sizeof db_);
+        connected_ = false;
+    }
+    return true;
+}
+
+bool MysqlClient::ExecCommand(const char *command, size_t len)
+{
+    if (!IsConnected())
+    {
+        LOG_ERROR << "MysqlClient::ExecCommand() Connection has not been established";
+        return false;
+    }
+
+    int ret = mysql_real_query(&db_, command, len);
+    
     if (ret != 0)
     {
-        LOG_ERROR << "Sqlite3Client::Connect() Connect fails";
+        LOG_ERROR << "MysqlClient::ExecCommand() " << command 
+            << " execution fails: " << mysql_errno(&db_) << " " << mysql_error(&db_);
         return false;
     }
     return true;
 }
 
-bool Sqlite3Client::Exec(const std::string &sql)
-{
-    return ExecCommand(sql.data());
-}
-
-bool Sqlite3Client::Exec(const std::string &sql, Result &result, __Table &table)
-{
-    char *errmsg = nullptr;
-    if (!IsConnected())
-    {
-        LOG_ERROR << "Sqlite3Client::Exec() Connection has not been established";
-        return false;
-    }
-    ExecParam param{this, result, table};
-    int ret = sqlite3_exec(db_, sql.data(), &Sqlite3Client::ExecCallback,
-        static_cast<void *>(&param), &errmsg);
-    if (ret != SQLITE_OK)
-    {
-        LOG_ERROR << "Sqlite3Client::Exec() execution fails: " 
-                  << sql << " : " << errmsg;
-        return false;
-    }
-    if (errmsg) ::free(errmsg);
-
-    return true;
-}
-
-int Sqlite3Client::ExecCallback(void *arg, int count, char **values, char **names)
-{
-    ExecParam *param = static_cast<ExecParam *>(arg);
-    return param->obj_->ExecCallback(param->result_, param->table_, count, names, values);
-}
-
-int Sqlite3Client::ExecCallback(Result &result, __Table &table, int count, 
-    char **names, char **values)
-{
-    TablePtr tab = table.Copy();
-
-    for (int i = 0; i < count; ++i)
-    {
-        auto field_it = tab->Fields().find(names[i]);
-        if (field_it == tab->Fields().end())
-        {
-            LOG_ERROR << "Sqlite3Client::ExecCallback() Can not find name: " << names[i];
-            return -1;
-        }
-        if (values[i] != nullptr)
-        {
-            field_it->second->LoadFromStr(values[i]);
-        }
-    }
-    result.push_back(tab);
-
-    return 0;
-}
-
-bool Sqlite3Client::ExecCommand(const char *command) const
-{
-    if (!IsConnected())
-    {
-        LOG_ERROR << "Sqlite3Client::ExecCommand() Connection has not been established";
-        return false;
-    }
-
-    int ret = sqlite3_exec(db_, command, nullptr, nullptr, nullptr);
-    
-    if (ret != SQLITE_OK)
-    {
-        LOG_ERROR << "Sqlite3Client::ExecCommand() " << command 
-                  << " execution fails: " << sqlite3_errmsg(db_);
-        return false;
-    }
-    return true;
-}
-
-bool Sqlite3Client::Close()
-{
-    if (!IsConnected())
-    {
-        LOG_ERROR << "Sqlite3Client::Close() Connection has not been established";
-        return false;
-    }
-
-    int ret = sqlite3_close(db_);
-    if (ret != SQLITE_OK)
-    {
-        LOG_ERROR << "Sqlite3Client::Close() fails" << sqlite3_errmsg(db_);
-        return false;
-    }
-    db_ = nullptr;
-    return true;
-}
-
-bool __Sqlite3Table::Create()
+bool __MysqlTable::Create()
 {
     // CREATE TABLE IF NOT EXISTS `tablename` `field`, `field`...;
     std::string sql = "CREATE TABLE IF NOT EXISTS " + GetName() + " (\r\n";
     bool first = true;
+    std::string primary = "";
+    std::string unique = "";
+
     for (auto &field : fields_)
     {
-        if (!first) sql += ", ";
+        if (!first) sql += ",\r\n";
         else first = false;
-        sql += field->Create(); 
+        if (field->GetAttr() & PRIMARY_KEY)
+        {
+            if (primary.size())
+                primary += ", ";
+            primary += field->GetName();
+        }
+        if (field->GetAttr() & UNIQUE)
+        {
+            if (unique.size())
+                unique += ", ";
+            unique += field->GetName();
+        }
+        
+        sql += field->Create();
+    }
+    if (primary.size())
+    {
+        sql += ",\r\n";
+        sql += "PRIMARY KEY(" + primary + ")";
+    }
+    if (unique.size())
+    {
+        sql += ",\r\n";
+        sql += "UNIQUE(" + unique + ")";
     }
 
     sql += ");";
-    DEBUGINFO << "__Sqlite3Table::Create() " << sql;
-
+    DEBUGINFO << "__MysqlTable::Create() " << sql;
     return db_->Exec(sql);
 }
 
-bool __Sqlite3Table::Drop()
+bool __MysqlTable::Drop()
 {
     std::string sql = "DROP TABLE " + GetName() + ";";
-    DEBUGINFO << "__Sqlite3Table::Drop() " << sql;
+    DEBUGINFO << "__MysqlTable::Drop() " << sql;
 
     return db_->Exec(sql);
 }
 
-bool __Sqlite3Table::Insert()
+bool __MysqlTable::Insert()
 {
     std::string sql = "INSERT INTO " + GetName() + " (";
     bool first = true;
@@ -196,12 +201,12 @@ bool __Sqlite3Table::Insert()
     }
     sql += ");";
 
-    DEBUGINFO << "__Sqlite3Table::Insert() " << sql;
+    DEBUGINFO << "__MysqlTable::Insert() " << sql;
     
     return db_->Exec(sql);
 }
 
-bool __Sqlite3Table::Delete()
+bool __MysqlTable::Delete()
 {
     std::string sql = "DELETE FROM " + GetName();
     
@@ -223,12 +228,12 @@ bool __Sqlite3Table::Delete()
         sql += " WHRER " + Where;
     }
     sql += ";";
-    DEBUGINFO << "__Sqlite3Table::Delete() " << sql;
+    DEBUGINFO << "__MysqlTable::Delete() " << sql;
 
     return db_->Exec(sql);
 }
 
-bool __Sqlite3Table::Modify(const __Table &val)
+bool __MysqlTable::Modify(const __Table &val)
 {
     std::string sql = "UPDATE " + GetName() + " SET ";
     bool first = true;
@@ -260,12 +265,12 @@ bool __Sqlite3Table::Modify(const __Table &val)
         sql += " WHERE " + Where;
     }
     sql += ";";
-    DEBUGINFO << "__Sqlite3Table::Modify() " << sql;
+    DEBUGINFO << "__MysqlTable::Modify() " << sql;
     
     return db_->Exec(sql);
 }
 
-bool __Sqlite3Table::Query(Result &result)
+bool __MysqlTable::Query(Result &result)
 {
     std::string sql = "SELECT ";
     bool first = true;
@@ -277,16 +282,16 @@ bool __Sqlite3Table::Query(Result &result)
     }
     sql += " FROM " + GetName() + ";";
 
-    DEBUGINFO << "__Sqlite3Table::Query() " << sql;
+    DEBUGINFO << "__MysqlTable::Query() " << sql;
     return db_->Exec(sql, result, *this);
 }
 
-TablePtr __Sqlite3Table::Copy() const
+TablePtr __MysqlTable::Copy() const
 {
-    return std::make_shared<__Sqlite3Table>(*this);
+    return std::make_shared<__MysqlTable>(*this);
 }
 
-__Sqlite3Field::__Sqlite3Field(
+__MysqlField::__MysqlField(
     const std::string &name, unsigned type, unsigned attr, 
     const std::string &size, const std::string &_default, 
     const std::string &check)
@@ -313,8 +318,7 @@ __Sqlite3Field::__Sqlite3Field(
         break;
     }
 }
-
-__Sqlite3Field::~__Sqlite3Field()
+__MysqlField::~__MysqlField()
 {
     switch (n_type_)
     {
@@ -328,8 +332,7 @@ __Sqlite3Field::~__Sqlite3Field()
         break;
     }
 }
-
-__Sqlite3Field::__Sqlite3Field(const __Sqlite3Field &field)
+__MysqlField::__MysqlField(const __MysqlField &field)
     : __Field(field), n_type_(field.n_type_)
 {
     switch (field.n_type_)
@@ -351,40 +354,32 @@ __Sqlite3Field::__Sqlite3Field(const __Sqlite3Field &field)
         break;
     }
 }
-
-std::string __Sqlite3Field::Create()
+std::string __MysqlField::Create()
 {
-    std::string sql = ToSqlName() + type_;
+    std::string sql = "`" + ToSqlName() + "` " + type_;
     if (size_.size()) sql += size_;
 
     if (attr_ & NOT_NULL)
     {
         sql += " NOT NULL";
     }
+    else 
+    {
+        sql += " NULL";
+    }
+
     if ((attr_ & DEFAULT) && default_.size())
     {
         sql += " DEFAULT \"" + default_ + "\"";
     }
-    if (attr_ & UNIQUE)
-    {
-        sql += " UNIQUE";
-    }
-    if (attr_ & PRIMARY_KEY)
-    {
-        sql += " PRIMARY KEY";
-    }
-    if (attr_ & CHECK)
-    {
-        sql += " CHECK( " + check_ +  " ) ";
-    }
     if (attr_ & AUTOINCREMENT)
     {
-        sql += " AUTOINCREMENT";
+        sql += " AUTO_INCREMENT";
     }
     return sql;
 }
 
-void __Sqlite3Field::LoadFromStr(const std::string &str)
+void __MysqlField::LoadFromStr(const std::string &str)
 {
     switch (n_type_)
     {
@@ -422,12 +417,12 @@ void __Sqlite3Field::LoadFromStr(const std::string &str)
     }
 }
 
-std::string __Sqlite3Field::ToEqualExp()
+std::string __MysqlField::ToEqualExp()
 {
     return ToSqlName() + " " + com_ops_ + " " + ToSqlStr();
 }
 
-std::string __Sqlite3Field::ToSqlStr()
+std::string __MysqlField::ToSqlStr()
 {
     switch (n_type_)
     {
@@ -452,14 +447,14 @@ std::string __Sqlite3Field::ToSqlStr()
     return "???";
 }
 
-FieldPtr __Sqlite3Field::Copy() const
+FieldPtr __MysqlField::Copy() const
 {
-    return std::make_shared<__Sqlite3Field>(*this);
+    return std::make_shared<__MysqlField>(*this);
 }
 
-const char *__Sqlite3Field::SqlTypeToStr(unsigned type)
+const char *__MysqlField::SqlTypeToStr(unsigned type)
 {
-    return kSqlite3Type[type];
+    return kMysqlType[type];
 }
 
 } // namespace ebo
