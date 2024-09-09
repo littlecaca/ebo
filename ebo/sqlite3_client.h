@@ -77,7 +77,7 @@ public:
     virtual bool Insert() override;
     virtual bool Delete() override;
     virtual bool Modify(const __Table &val) override;
-    virtual bool Query(Result &result) override;
+    virtual bool Query(Result &result, const std::string &condition = "") override;
 
     virtual TablePtr Copy() const override;
 };

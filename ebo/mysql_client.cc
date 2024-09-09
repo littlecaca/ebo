@@ -138,13 +138,13 @@ bool __MysqlTable::Create()
         {
             if (primary.size())
                 primary += ", ";
-            primary += field->GetName();
+            primary += field->ToSqlName();
         }
         if (field->GetAttr() & UNIQUE)
         {
             if (unique.size())
                 unique += ", ";
-            unique += field->GetName();
+            unique += field->ToSqlName();
         }
         
         sql += field->Create();
@@ -270,7 +270,7 @@ bool __MysqlTable::Modify(const __Table &val)
     return db_->Exec(sql);
 }
 
-bool __MysqlTable::Query(Result &result)
+bool __MysqlTable::Query(Result &result, const std::string &condition)
 {
     std::string sql = "SELECT ";
     bool first = true;
@@ -280,7 +280,13 @@ bool __MysqlTable::Query(Result &result)
         else first = false;
         sql += field->ToSqlName();
     }
-    sql += " FROM " + GetName() + ";";
+    sql += " FROM " + GetName();
+
+    if (condition.size())
+    {
+        sql += " WHERE " + condition;
+    }
+    sql += ";";
 
     DEBUGINFO << "__MysqlTable::Query() " << sql;
     return db_->Exec(sql, result, *this);
@@ -356,7 +362,7 @@ __MysqlField::__MysqlField(const __MysqlField &field)
 }
 std::string __MysqlField::Create()
 {
-    std::string sql = "`" + ToSqlName() + "` " + type_;
+    std::string sql = ToSqlName() + " " + type_;
     if (size_.size()) sql += size_;
 
     if (attr_ & NOT_NULL)

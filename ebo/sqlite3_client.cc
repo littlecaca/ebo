@@ -265,7 +265,7 @@ bool __Sqlite3Table::Modify(const __Table &val)
     return db_->Exec(sql);
 }
 
-bool __Sqlite3Table::Query(Result &result)
+bool __Sqlite3Table::Query(Result &result, const std::string &condition)
 {
     std::string sql = "SELECT ";
     bool first = true;
@@ -275,7 +275,13 @@ bool __Sqlite3Table::Query(Result &result)
         else first = false;
         sql += field->ToSqlName();
     }
-    sql += " FROM " + GetName() + ";";
+    sql += " FROM " + GetName();
+
+    if (condition.size())
+    {
+        sql += " WHERE " + condition;
+    }
+    sql += ";";
 
     DEBUGINFO << "__Sqlite3Table::Query() " << sql;
     return db_->Exec(sql, result, *this);
