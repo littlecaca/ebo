@@ -18,25 +18,30 @@ struct HttpMessage
 {
 public:
     HttpMessage()
-        : parsed_(false)
+        : parsed_(false), header_parsed_(false)
     {
+        ::memset(&parser_, 0, sizeof parser_);
+        http_parser_init(&parser_, HTTP_REQUEST);
+        parser_.data = this;
     }
+
     virtual ~HttpMessage()
     {
     }
 
-    bool Parse(const std::string &raw_msg_str);
+    size_t Parse(const std::string &raw_msg_str);
 
-    bool IsParsed() const { return parsed_; }
+    bool IsMessageParsed() const { return parsed_; }
+    bool IsHeaderParsed() const { return header_parsed_; }
 
     unsigned Method() const { return method_; }
     unsigned Status() const { return status_; }
 
-    std::string &MethodStr() { return method_str_; }
-    std::string &StatusStr() { return status_str_; }
-    std::string &Url() { return url_; }
-    HeaderMap &Headers() { return headers_; }
-    std::string &Body() { return body_; }
+    const std::string &MethodStr() const { return method_str_; }
+    const std::string &StatusStr() const { return status_str_; }
+    const std::string &Url() const { return url_; }
+    const HeaderMap &Headers() const { return headers_; }
+    const std::string &Body() const { return body_; }
     
 private:
     static int OnMessageBegin(http_parser *);
@@ -50,12 +55,13 @@ private:
 
 private:
     bool parsed_;
+    bool header_parsed_;
     http_parser parser_;
     friend class SetSettings;
     static http_parser_settings settings_;
     std::string __last_field_;
     
-protected:
+private:
     unsigned method_;
     unsigned status_;
     std::string method_str_;
@@ -88,6 +94,16 @@ public:
     bool Find(const std::string &key) const
     {
         return args_.find(key) != args_.end();
+    }
+
+    std::string &At(const std::string &key)
+    {
+        return args_.at(key);
+    }
+
+    const std::string &At(const std::string &key) const
+    {
+        return args_.at(key);
     }
 
     bool IsValid() { return parsed_; }

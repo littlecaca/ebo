@@ -8,7 +8,7 @@ int main(int argc, char const *argv[])
 {
     LOG_INFO << "Start http_parser_test";
 
-    Url url("https://www.bilibili.com:8080/video/BV1rvWpeDEDi/?spm_id_from=333.1007.tianma.1-2-2.click&vd_source=f9450b608b4b6275a87a66573d9fc7fe");
+    Url url("http://192.168.154.129:6607/login?time=155422432&user=liming&salt=21113&sign=a6ed5cc0ad808b048ff01e2ed6bdb073");
     
 
     if (url.IsValid())

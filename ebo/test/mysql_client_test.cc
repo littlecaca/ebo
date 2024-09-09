@@ -5,9 +5,9 @@
 using namespace ebo;
 
 DECLARE_TABLE_CLASS(User, __MysqlTable);
-DECLARE_FIELD(__MysqlField, "user_id", TYPE_INT, 
+DECLARE_FIELD(__MysqlField, user_id, TYPE_INT, 
     AUTOINCREMENT | PRIMARY_KEY | NOT_NULL, "", "", "");
-DECLARE_FIELD(__MysqlField, "user_name", TYPE_VARCHAR,
+DECLARE_FIELD(__MysqlField, user_name, TYPE_VARCHAR,
     NOT_NULL | DEFAULT, "(100)", "unknown", "");
 DECLARE_TABLE_END();
 
@@ -15,7 +15,7 @@ DECLARE_TABLE_END();
 int main(int argc, char const *argv[])
 {
 
-    LOG_INFO << "sqlite3_client_test Start";
+    LOG_INFO << "mysql_client_test Start";
     DBPtr client = std::make_shared<MysqlClient>("test");
     KeyValue args;
     args["host"] = "192.168.154.129";
@@ -29,7 +29,7 @@ int main(int argc, char const *argv[])
     User user(client);
     user.Create();
     Result result;
-    user.Query(result);
+    user.Query(result, "`user_name` = mumu");
     for (auto &tab : result)
     {
         LOG_INFO << tab->GetRowStr();

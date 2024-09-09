@@ -1,0 +1,14 @@
+{
+    "mysql":
+    {
+        "host": "192.168.154.129",
+        "port": "3306",
+        "user": "siso",
+        "pwd": "5632470",
+        "db": "ebo"
+    },
+    "safe":
+    {
+        "md5_key": "*&^%$#@b.v+h-b*g/h@n!h#n$d^ssx,.kl<kl"
+    }
+}

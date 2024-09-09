@@ -1,5 +1,7 @@
 #include "mysql_client.h"
 
+#include <unordered_set>
+
 #include "logger.h"
 
 namespace ebo
@@ -16,6 +18,14 @@ const char *kMysqlType[] = {
     "VARCHAR",
     "TEXT",
     "BLOB"
+};
+
+const std::unordered_set<std::string> types_no_default
+{
+    "BLOB",
+    "TEXT",
+    "GEOMETRY",
+    "JSON"
 };
 }   // internal linkage
 
@@ -74,6 +84,7 @@ bool MysqlClient::Exec(const std::string &sql, Result &result, __Table &table)
     if (!ExecCommand(sql.data(), sql.size()))
         return false;
     MYSQL_RES *res = mysql_store_result(&db_);
+
     MYSQL_ROW row;
     unsigned num_fields = mysql_num_fields(res);
 
@@ -85,6 +96,7 @@ bool MysqlClient::Exec(const std::string &sql, Result &result, __Table &table)
             if (row[i] != nullptr)
             {
                 tab->FieldDefine()[i]->LoadFromStr(row[i]);
+                // DEBUGINFO << tab->FieldDefine()[i]->GetName() << ": " << row[i];
             }
         }
         result.push_back(tab);
@@ -310,9 +322,9 @@ __MysqlField::__MysqlField(
             _default,
             check
         ),
-        Double(0),
         n_type_(type) 
 {
+    Double = 0;
     switch (n_type_)
     {
     case TYPE_VARCHAR:
@@ -360,6 +372,7 @@ __MysqlField::__MysqlField(const __MysqlField &field)
         break;
     }
 }
+
 std::string __MysqlField::Create()
 {
     std::string sql = ToSqlName() + " " + type_;
@@ -374,9 +387,12 @@ std::string __MysqlField::Create()
         sql += " NULL";
     }
 
-    if ((attr_ & DEFAULT) && default_.size())
+    if ((attr_ & DEFAULT) && default_.size() && !types_no_default.count(type_))
     {
-        sql += " DEFAULT \"" + default_ + "\"";
+        if (n_type_ != TYPE_DATETIME)
+            sql += " DEFAULT \"" + default_ + "\"";
+        else
+            sql += " DEFAULT " + default_;
     }
     if (attr_ & AUTOINCREMENT)
     {
@@ -406,7 +422,16 @@ void __MysqlField::LoadFromStr(const std::string &str)
     case TYPE_BOOL:
     case TYPE_INT:
     case TYPE_DATETIME:
-        Integer = std::stoi(str);
+        try
+        {
+            Integer = std::stoll(str.data());
+        }
+        catch(const std::out_of_range& e)
+        {
+            LOG_ERROR << "__MysqlField::LoadFromStr() " << GetName() << " type: " 
+                        << type_ << ": " << e.what();
+            Integer = -1;
+        }
         break;
     case TYPE_REAL:
         Double = std::stod(str);
@@ -421,6 +446,7 @@ void __MysqlField::LoadFromStr(const std::string &str)
     default:
         break;
     }
+
 }
 
 std::string __MysqlField::ToEqualExp()

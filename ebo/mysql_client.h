@@ -111,13 +111,7 @@ protected:
     static const char *SqlTypeToStr(unsigned type);
 
 protected:
-    union
-    {
-        bool Bool;
-        int Integer;
-        double Double;
-        std::string *String;
-    };
+
     unsigned n_type_;
 };
 }   // namespace ebo

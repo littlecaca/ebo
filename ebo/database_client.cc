@@ -1,14 +1,17 @@
 #include "database_client.h"
 
+#include "logger.h"
+
 namespace ebo
 {
 __Table::__Table(const __Table &tab)
-    : db_(tab.db_), name_(tab.name_), field_map_(tab.field_map_)
+    : db_(tab.db_), name_(tab.name_)
 {
-    for (auto &[_, field] : field_map_)
+    for (auto &field : tab.FieldDefine())
     {
-        field = field->Copy();
-        fields_.push_back(field);
+        auto field_ptr = field->Copy();
+        fields_.push_back(field_ptr);
+        field_map_[field->GetName()] = field_ptr;
     }
     ClearCondition();
 }

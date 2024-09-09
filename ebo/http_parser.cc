@@ -70,6 +70,7 @@ int HttpMessage::OnHeaderValue(http_parser *parser, const char *at, size_t lengt
 
 int HttpMessage::OnHeadersComplete(http_parser *parser)
 {
+    CastToMsg(parser)->header_parsed_ = true;
     return 0;
 }
 
@@ -85,13 +86,14 @@ int HttpMessage::OnMessageComplete(http_parser *parser)
     CastToMsg(parser)->method_ = parser->method;
     CastToMsg(parser)->method_str_ 
         = http_method_str(static_cast<http_method>(parser->method));
+    CastToMsg(parser)->parsed_ = true;
     return 0;
 }
 
-bool HttpMessage::Parse(const std::string &raw_msg_str)
+size_t HttpMessage::Parse(const std::string &raw_msg_str)
 {
-    ::memset(&parser_, 0, sizeof parser_);
-    parser_.data = this;
+    parsed_ = false;
+    header_parsed_ = false;
     
     size_t ret = http_parser_execute(&parser_, &settings_, raw_msg_str.data(), raw_msg_str.size());
     if (ret < raw_msg_str.size())
@@ -99,10 +101,10 @@ bool HttpMessage::Parse(const std::string &raw_msg_str)
         if (parser_.http_errno != http_errno::HPE_OK)
         {
             ReportHttpError(&parser_, "HttpMessage::Parse(): http_parser_execute()");
-            return parsed_ = false;
+            return false;
         }
     }
-    return parsed_ = true;
+    return ret;
 }
 
 bool Url::Parse()
@@ -119,7 +121,7 @@ bool Url::Parse()
     host_ = raw_url_str_.substr(host_start, host_end - host_start);
 
     // port :
-    DEBUGINFO << host_;
+    // DEBUGINFO << host_;
     auto host_real_end = host_.find_last_of(':');
     if (host_real_end != host_.npos && host_real_end < host_end - 1)
     {

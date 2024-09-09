@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.5)
-enable_testing()
 
 project(ebo_server)
 
@@ -8,21 +7,26 @@ set(CMAKE_INSTALL_PREFIX "/home/siso/ebo")
 
 # Functions to create test quickly
 function(do_test lib target arg)
-    add_executable(${target} ${target}.cc)
-    target_link_libraries(${target} PRIVATE ${lib})
-    add_test(NAME ${target} COMMAND ${target} ${arg})
+add_executable(${target} ${target}.cc)
+target_link_libraries(${target} PRIVATE ${lib})
+add_test(NAME ${target} COMMAND ${target} ${arg})
 endfunction(do_test)
 
 function(do_bad_test lib target arg)
-    add_executable(${target} ${target}.cc)
-    target_link_libraries(${target} PRIVATE ${lib})
-    add_test(NAME ${target} COMMAND ${CMAKE_COMMAND} -E env $<TARGET_FILE:${target}> ${arg})
-    set_property(TEST ${target} PROPERTY WILL_FAIL true)
+add_executable(${target} ${target}.cc)
+target_link_libraries(${target} PRIVATE ${lib})
+add_test(NAME ${target} COMMAND ${CMAKE_COMMAND} -E env $<TARGET_FILE:${target}> ${arg})
+set_property(TEST ${target} PROPERTY WILL_FAIL true)
 endfunction(do_bad_test)
 
 option(EBO_BUILD_TEST "build test program" ON)
 option(EBO_BUILD_EXAMPLE "build example program" ON)
 option(EBO_DEBUG "Debug mode" ON)
+
+# Enable test
+if (EBO_BUILD_TEST)
+    enable_testing()
+endif()
 
 if (EBO_DEBUG)
     add_compile_definitions(_DEBUG)
@@ -38,6 +42,8 @@ set(EBO_SOURCE
     sqlite3_client.cc
     database_client.cc
     mysql_client.cc
+    encryptor.cc
+    ebo_server.cc
 )
 
 # Add the muzi include and lib
@@ -49,11 +55,24 @@ target_compile_features(ebo_compile_flags INTERFACE cxx_std_17)
 
 add_library(ebo_server ${EBO_SOURCE})
 # Must put the dependent libs to back
-target_link_libraries(ebo_server ebo_compile_flags muzi_net muzi_base http_parser sqlite3 mysqlclient)
+target_link_libraries(ebo_server ebo_compile_flags muzi_net muzi_base 
+    http_parser sqlite3 mysqlclient crypto jsoncpp)
 
 # provide its headers to other library linking to it
-target_include_directories(ebo_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(ebo_server PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vender/includes)
+include_directories(PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vender/includes)
+
+install(FILES config.json
+        DESTINATION ${CMAKE_BINARY_DIR})
+
+# install finnal product
+add_executable(ebo main.cc)
+target_link_libraries(ebo ebo_compile_flags ebo_server muzi_net muzi_base 
+    http_parser sqlite3 mysqlclient crypto jsoncpp)
+install(TARGETS ebo
+        DESTINATION bin)
+install(FILES config.json
+        DESTINATION bin)
 
 if (EBO_BUILD_TEST)
     add_subdirectory(test)

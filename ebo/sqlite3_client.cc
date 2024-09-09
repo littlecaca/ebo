@@ -305,9 +305,9 @@ __Sqlite3Field::__Sqlite3Field(
             _default,
             check
         ),
-        Double(0),
         n_type_(type) 
 {
+    Double = 0;
     switch (n_type_)
     {
     case TYPE_VARCHAR:
@@ -338,6 +338,8 @@ __Sqlite3Field::~__Sqlite3Field()
 __Sqlite3Field::__Sqlite3Field(const __Sqlite3Field &field)
     : __Field(field), n_type_(field.n_type_)
 {
+    DEBUGINFO << "Copy Constructor __Sqlite3Field";
+    
     switch (field.n_type_)
     {
     case TYPE_BOOL:

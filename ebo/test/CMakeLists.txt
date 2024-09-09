@@ -14,3 +14,4 @@ install(TARGETS sqlite3_client_test
         DESTINATION test)
 
 do_test(ebo_server mysql_client_test "")
+do_test(ebo_server encryptor_test "")

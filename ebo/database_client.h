@@ -72,7 +72,7 @@ public:
     virtual bool Insert() = 0;
     virtual bool Delete() = 0;
     virtual bool Modify(const __Table &val) = 0;
-    virtual bool Query(Result &result) = 0;
+    virtual bool Query(Result &result, const std::string &condition = "") = 0;
 
     virtual TablePtr Copy() const = 0;
     
@@ -103,6 +103,7 @@ enum FieldOps : unsigned
 
 enum FieldAttr : unsigned
 {
+    NONE = 0,
     NOT_NULL = 1,
     DEFAULT = 2,
     UNIQUE = 4,
@@ -139,6 +140,8 @@ public:
           com_ops_("=")
     {
     }
+
+
     virtual ~__Field() = default;
 
 public:
@@ -160,6 +163,14 @@ public:
 public:
     unsigned condition_;
 
+    union
+    {
+        bool Bool;
+        long long Integer;
+        double Double;
+        std::string *String;
+    };
+
 protected:
     std::string name_;
     std::string type_;
@@ -179,8 +190,8 @@ protected:
         name(DBPtr db) : base(db, #name) {                              
 
 #define DECLARE_FIELD(field_name, name, n_type, attr, size, _default, check)        \
-    {FieldPtr field(new field_name(name, n_type, attr, size, _default, check));     \
-        fields_.push_back(field); field_map_[name] = field;}
+    {FieldPtr field(new field_name(#name, n_type, attr, size, _default, check));     \
+        fields_.push_back(field); field_map_[#name] = field;}
 
 #define DECLARE_TABLE_END() }};
 
