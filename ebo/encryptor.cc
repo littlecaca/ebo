@@ -9,7 +9,6 @@
 #include <openssl/evp.h>
 
 
-
 namespace ebo
 {
 std::string Encryptor::MD5(const std::string &text)
